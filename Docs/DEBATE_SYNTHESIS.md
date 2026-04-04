@@ -1,7 +1,7 @@
 # Architecture Debate Synthesis
 
 **Date:** 2026-04-05
-**Participants:** Claude Backend Architect (completed), UI/Input Specialist (pending), Performance Engineer (pending)
+**Participants:** Claude Backend Architect (completed), UI/Input Specialist (completed), Gemini CLI (completed)
 
 ---
 
@@ -85,7 +85,7 @@
 | — (NEW) | ADD | AudioManager.cs |
 | — (NEW) | ADD | ObjectPool.cs |
 
-### Final Script List (~12 scripts):
+### Final Script List (~13 scripts):
 1. GameConfig.cs (ScriptableObject)
 2. LevelData.cs (ScriptableObject)
 3. GameManager.cs (state machine + scoring)
@@ -96,6 +96,66 @@
 8. LevelManager.cs (level flow + pooling)
 9. FinishLine.cs (trigger)
 10. UIController.cs (all panels + HUD)
-11. CameraFollow.cs (or use Cinemachine)
-12. AudioManager.cs (one-shot SFX)
-13. FaceDisplay.cs (preset sprites, upgradeable later)
+11. SafeAreaPanel.cs (notch/cutout handling)
+12. CameraFollow.cs (or use Cinemachine)
+13. AudioManager.cs (one-shot SFX)
+14. FaceDisplay.cs (preset sprites, upgradeable later)
+
+---
+
+## UI/Input Specialist Findings
+
+### Touch Input — Swipe Detection Required
+The spec says "touch or swipe" but the original plan only handles position-based touch. For lane-based movement, use **relative offset**: on `TouchPhase.Began` record anchor X, on `Moved` compute delta, fire `OnSwipeLeft`/`OnSwipeRight` with 50px minimum distance and 300ms max duration. This also works with New Input System's `EnhancedTouch`.
+
+### Touch-to-Movement Mapping Fix
+Raw `touch.position.x / Screen.width` causes the car to teleport. Instead: use relative delta from touch start as a virtual joystick. Add a 15px dead zone before movement registers.
+
+### Canvas Scaler Specifics
+- Reference resolution: **1080x1920**
+- Match Width or Height at **match = 0.5**
+- Parent all HUD under a `SafeAreaPanel` that reads `Screen.safeArea` and adjusts RectTransform anchors
+- Test with Device Simulator at 16:9, 18:9, and 20:9
+
+### Face Customization UI
+Use a modal overlay on the same Canvas with higher sorting order. Grid of preset faces as Button components. For gallery picker (post-MVP), use `MaterialPropertyBlock` to avoid material instancing costs.
+
+---
+
+## Gemini CLI Findings
+
+### New Input System Recommendation
+Strongly favors **New Input System** over legacy — enables mouse simulation for PC testing, better touch-to-world conversion, and consistent Android back button handling.
+
+### Android Permissions (NEW)
+Must explicitly request Camera/Gallery permissions before NativeGallery plugin call. Google Play will reject APK without proper permission flow. Handle in FaceCustomizationManager.
+
+### Save System (NEW)
+Need `PlayerPrefs` or JSON serialization for:
+- High scores per level
+- Selected face image (base64 PNG or preset index)
+- Unlocked content
+
+### ScriptableObject Events Alternative
+Instead of static C# Actions, consider SO-based events (Ryan Hipple pattern): Inspector-visible, no unsubscribe risk, easier for beginners to debug.
+
+### Rigidbody Confirmation
+Confirms: `Rigidbody.MovePosition` in `FixedUpdate` + `Interpolation = Interpolate`. Plan already has this correct.
+
+---
+
+## Consensus Across All 3 Reviewers
+
+| Topic | Architect | UI/Input | Gemini | Consensus |
+|-------|-----------|----------|--------|-----------|
+| Script count | Reduce to ~12 | Merge UI into 1 | Merge UI + Score | **Reduce to ~13** |
+| Singletons | Drop all 4 | — | Use 1 master only | **0-1 singletons** |
+| Static events | Direct calls | — | SO events or UnityEvents | **Direct calls for MVP** |
+| Input system | Legacy OK | New Input System | New Input System | **Consider New Input System** |
+| Movement | Lane-based | Lane + swipe | Free OK with fixes | **Lane-based for MVP** |
+| Object pooling | Required | — | Required | **Required** |
+| Camera system | Cinemachine | — | — | **Cinemachine** |
+| Safe area | Required | Required + specifics | Required | **Required (1080x1920 ref)** |
+| Audio | Required | — | — | **Required** |
+| Face upload | Defer | Preset sprites | Defer + permissions | **Defer to post-MVP** |
+| Save system | — | — | Required | **Add PlayerPrefs** |
