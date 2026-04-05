@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv --version)",
+      "Bash(claude mcp:*)",
+      "Bash(uvx --python \">=3.11\" coplay-mcp-server@latest .)",
+      "mcp__coplay-mcp__get_unity_editor_state",
+      "mcp__coplay-mcp__list_unity_project_roots",
+      "mcp__coplay-mcp__set_unity_project_root",
+      "mcp__coplay-mcp__check_compile_errors",
+      "Read(//c/Users/maor4/OneDrive/Desktop/Fast-and-Acro-Unity/**)",
+      "Bash(dir \"C:\\\\Users\\\\maor4\\\\OneDrive\\\\Desktop\\\\Fast-and-Acro-Unity\")",
+      "Bash(\"C:\\\\Program Files\\\\Unity Hub\\\\Unity Hub.exe\" -- --headless add -p \"C:\\\\Users\\\\maor4\\\\OneDrive\\\\Desktop\\\\Fast-and-Acro-Unity\")",
+      "Bash(\"C:\\\\Program Files\\\\Unity Hub\\\\Unity Hub.exe\" -- --headless help)",
+      "Bash(cmd /c start \"\" \"C:\\\\Program Files\\\\Unity\\\\Hub\\\\Editor\\\\6000.0.34f1\\\\Editor\\\\Unity.exe\" -projectPath \"C:\\\\Users\\\\maor4\\\\OneDrive\\\\Desktop\\\\Fast-and-Acro-Unity\")",
+      "Bash(pip show:*)",
+      "Bash(uvx coplay-mcp-server:*)",
+      "WebSearch",
+      "Bash(pip install:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:openupm.com)"
+    ]
+  }
+}
