@@ -84,6 +84,11 @@ public class CollisionHandler : MonoBehaviour
         if (_isInvincible) return;
         if (!other.CompareTag("Obstacle")) return;
 
+        // Mark the obstacle so NearMissDetector knows this was a real hit, not a near-miss.
+        Obstacle obstacle = other.GetComponent<Obstacle>();
+        if (obstacle != null)
+            obstacle.WasHit = true;
+
         TakeDamage();
     }
 

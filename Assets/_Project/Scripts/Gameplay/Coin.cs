@@ -5,6 +5,12 @@ public class Coin : MonoBehaviour
 {
     public static event System.Action OnCoinCollected;
 
+    /// <summary>
+    /// Fired with the world-space position of the coin at the moment of collection.
+    /// Used by CoinCollectVFX to spawn a particle burst at the correct location.
+    /// </summary>
+    public static event System.Action<Vector3> OnCoinCollectedAt;
+
     [SerializeField] private float _rotationSpeed = 120f;
     [SerializeField] private float _bobAmplitude = 0.15f;
     [SerializeField] private float _bobFrequency = 2f;
@@ -58,7 +64,9 @@ public class Coin : MonoBehaviour
         if (!_isActive) return;
         if (!other.CompareTag("Player")) return;
 
+        Vector3 collectedPosition = transform.position;
         OnCoinCollected?.Invoke();
+        OnCoinCollectedAt?.Invoke(collectedPosition);
         Deactivate();
     }
 }

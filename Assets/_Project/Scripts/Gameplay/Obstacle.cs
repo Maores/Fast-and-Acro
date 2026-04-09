@@ -20,6 +20,12 @@ public class Obstacle : MonoBehaviour
     private float _originX;
 
     /// <summary>
+    /// Set to true by CollisionHandler when the car actually hits this obstacle.
+    /// Read by NearMissDetector to distinguish a hit from a true near-miss.
+    /// </summary>
+    public bool WasHit { get; set; }
+
+    /// <summary>
     /// Configure this obstacle when spawned from the pool.
     /// </summary>
     public void Setup(Vector3 position, bool isMoving, float moveSpeed)
@@ -28,6 +34,7 @@ public class Obstacle : MonoBehaviour
         _originX = position.x;
         _isMoving = isMoving;
         _moveSpeed = moveSpeed;
+        WasHit = false;
         gameObject.SetActive(true);
 
         // Show the correct 3D model based on type

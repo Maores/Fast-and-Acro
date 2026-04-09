@@ -25,6 +25,10 @@ public class LevelData : ScriptableObject
     [Tooltip("Z offset from start where obstacles begin spawning")]
     public float obstacleStartOffset = 20f;
 
+    [Tooltip("Fraction of track length (from obstacleStartOffset) kept obstacle-free as a safe zone for new players")]
+    [Range(0f, 0.3f)]
+    public float safeZoneRatio = 0.15f;
+
     [Header("Obstacle Types")]
     [Tooltip("Fraction of obstacles that move side-to-side (0-1)")]
     [Range(0f, 1f)]

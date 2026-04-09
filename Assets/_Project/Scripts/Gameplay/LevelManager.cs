@@ -64,30 +64,31 @@ public class LevelManager : MonoBehaviour
     private void SpawnObstacles()
     {
         int count = _levelData.obstacleCount;
-        float startZ = _levelData.obstacleStartOffset;
-        float endZ = _levelData.trackLength - 10f; // Leave room before finish
-        float spacing = (endZ - startZ) / Mathf.Max(count, 1);
         float minSpacing = _levelData.minObstacleSpacing;
+
+        // Safe zone: no obstacles for the first safeZoneRatio of track length.
+        // obstacleStartOffset can shift the absolute start even further.
+        float safeZoneEnd = _levelData.trackLength * _levelData.safeZoneRatio;
+        float startZ = Mathf.Max(_levelData.obstacleStartOffset, safeZoneEnd);
+        float endZ = _levelData.trackLength - 10f; // Leave room before finish line
 
         // Track placed Z positions to enforce minimum spacing
         var placedZ = new System.Collections.Generic.List<float>(count);
 
         for (int i = 0; i < count; i++)
         {
-            float z = startZ + spacing * i;
+            // Bias random value toward higher Z positions using a power curve.
+            // Mathf.Pow(Random.value, 0.6f) shifts distribution toward 1 (end of track),
+            // so obstacles are sparser near the start and denser near the finish.
+            float t = Mathf.Pow(Random.value, 0.6f);
+            float z = Mathf.Lerp(startZ, endZ, t);
 
-            // Add some randomness to Z position
-            z += Random.Range(-spacing * 0.3f, spacing * 0.3f);
-            z = Mathf.Clamp(z, startZ, endZ);
-
-            // Enforce minimum spacing: push forward if too close to any placed obstacle
+            // Enforce minimum spacing: scan placed positions and nudge forward if needed
             placedZ.Sort();
             foreach (float placedPos in placedZ)
             {
                 if (Mathf.Abs(z - placedPos) < minSpacing)
-                {
                     z = placedPos + minSpacing;
-                }
             }
             z = Mathf.Clamp(z, startZ, endZ);
 

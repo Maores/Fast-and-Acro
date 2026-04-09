@@ -10,6 +10,14 @@
       },
       "hash": "940831fe8a474e92b96a5c183298b45843cf067e"
     },
+    "com.tripo3d.unitybridge": {
+      "version": "file:C:/Users/maor4/Downloads/Tripo3d_Unity_Bridge-latest/Tripo3d_Unity_Bridge",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.unity.modules.jsonserialize": "1.0.0"
+      }
+    },
     "com.unity.burst": {
       "version": "1.8.28",
       "depth": 2,

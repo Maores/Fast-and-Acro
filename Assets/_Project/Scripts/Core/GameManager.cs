@@ -30,6 +30,16 @@ public class GameManager : MonoBehaviour
     [SerializeField] private AudioManager _audioManager;
     [SerializeField] private CameraFollow _cameraFollow;
 
+    [Header("Juice Effects")]
+    [Tooltip("DamageFlash component on the HUD canvas. Shows a red vignette on player hit.")]
+    [SerializeField] private DamageFlash _damageFlash;
+
+    [Tooltip("Intensity of camera shake on player hit (world units).")]
+    [SerializeField] private float _hitShakeIntensity = 0.35f;
+
+    [Tooltip("Duration of camera shake on player hit (seconds).")]
+    [SerializeField] private float _hitShakeDuration = 0.4f;
+
     public GameState CurrentState { get; private set; } = GameState.Menu;
     public GameConfig Config => _config;
 
@@ -46,6 +56,7 @@ public class GameManager : MonoBehaviour
     private float _levelStartTime;
     private int _collisionCount;
     private int _coinsCollectedThisRun;
+    private int _nearMissesThisRun;
 
     private const string PREFS_PENDING_LEVEL = "PendingLevelIndex";
     private const string PREFS_AUTO_START = "AutoStartLevel";
@@ -72,11 +83,13 @@ public class GameManager : MonoBehaviour
     private void OnEnable()
     {
         Coin.OnCoinCollected += HandleCoinCollected;
+        NearMissDetector.OnNearMiss += HandleNearMiss;
     }
 
     private void OnDisable()
     {
         Coin.OnCoinCollected -= HandleCoinCollected;
+        NearMissDetector.OnNearMiss -= HandleNearMiss;
     }
 
     // --- State Transitions ---
@@ -91,6 +104,7 @@ public class GameManager : MonoBehaviour
 
         _collisionCount = 0;
         _coinsCollectedThisRun = 0;
+        _nearMissesThisRun = 0;
         _levelStartTime = Time.time;
 
         _collisionHandler.Initialize(_config.maxHP);
@@ -103,7 +117,7 @@ public class GameManager : MonoBehaviour
         }
 
         _levelManager.SetupLevel();
-        _car.SetLane(_config.laneCount / 2); // Start in center lane
+        _car.ResetPosition(_config.laneCount / 2); // Start at z=0, center lane
 
         SetState(GameState.Playing);
     }
@@ -237,6 +251,19 @@ public class GameManager : MonoBehaviour
 
     public int TotalCoins => PlayerPrefs.GetInt("TotalCoins", 0);
 
+    // --- Near-Miss Tracking (called via NearMissDetector.OnNearMiss) ---
+
+    private void HandleNearMiss()
+    {
+        if (CurrentState != GameState.Playing) return;
+        _nearMissesThisRun++;
+    }
+
+    /// <summary>
+    /// Total near-misses executed in the current run. Exposed for UI or scoring extensions.
+    /// </summary>
+    public int NearMissesThisRun => _nearMissesThisRun;
+
     // --- Collision Tracking (called by CollisionHandler) ---
 
     public void OnPlayerHit(int remainingHP)
@@ -244,6 +271,14 @@ public class GameManager : MonoBehaviour
         _collisionCount++;
         _ui.UpdateHP(remainingHP, _config.maxHP);
         _audioManager.PlayCollision();
+
+        // Juice: camera shake
+        if (_cameraFollow != null)
+            _cameraFollow.Shake(_hitShakeIntensity, _hitShakeDuration);
+
+        // Juice: red damage vignette
+        if (_damageFlash != null)
+            _damageFlash.Flash();
 
         if (remainingHP <= 0)
         {

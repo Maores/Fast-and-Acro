@@ -52,6 +52,16 @@ public class CarController : MonoBehaviour
     }
 
     /// <summary>
+    /// Resets car to the start of the track in the given lane.
+    /// </summary>
+    public void ResetPosition(int laneIndex)
+    {
+        _currentLane = Mathf.Clamp(laneIndex, 0, _config.laneCount - 1);
+        _targetX = _config.GetLanePosition(_currentLane);
+        transform.position = new Vector3(_targetX, transform.position.y, 0f);
+    }
+
+    /// <summary>
     /// Called by GameManager before gameplay starts to set per-level speed params.
     /// </summary>
     public void SetSpeedRamp(float startSpeed, float increment, float max)
