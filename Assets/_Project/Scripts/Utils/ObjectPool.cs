@@ -55,6 +55,8 @@ public class ObjectPool : MonoBehaviour
     /// </summary>
     public void ReturnAll()
     {
+        if (_poolParent == null) return;
+
         foreach (Transform child in _poolParent)
         {
             if (child.gameObject.activeSelf)

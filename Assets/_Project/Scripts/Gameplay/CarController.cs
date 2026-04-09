@@ -8,10 +8,16 @@ using UnityEngine;
 public class CarController : MonoBehaviour
 {
     [SerializeField] private GameConfig _config;
+    [SerializeField] private PowerUpEffect _powerUpEffect;
 
     private int _currentLane;
     private float _targetX;
     private bool _movementEnabled;
+
+    // Speed ramp
+    private float _currentSpeed;
+    private float _speedIncrement;
+    private float _maxSpeed;
 
     // Swipe tracking
     private Vector2 _touchStartPos;
@@ -45,11 +51,32 @@ public class CarController : MonoBehaviour
         transform.position = pos;
     }
 
+    /// <summary>
+    /// Called by GameManager before gameplay starts to set per-level speed params.
+    /// </summary>
+    public void SetSpeedRamp(float startSpeed, float increment, float max)
+    {
+        _currentSpeed = startSpeed > 0 ? startSpeed : _config.forwardSpeed;
+        _speedIncrement = increment;
+        _maxSpeed = max;
+    }
+
+    public float CurrentSpeed => _currentSpeed;
+
     // --- Movement ---
 
     private void MoveForward()
     {
-        transform.Translate(Vector3.forward * _config.forwardSpeed * Time.deltaTime, Space.World);
+        // Accelerate over time
+        if (_speedIncrement > 0f && _currentSpeed < _maxSpeed)
+        {
+            _currentSpeed += _speedIncrement * Time.deltaTime;
+            _currentSpeed = Mathf.Min(_currentSpeed, _maxSpeed);
+        }
+
+        float speedMult = _powerUpEffect != null ? _powerUpEffect.SpeedMultiplier : 1f;
+        float speed = _currentSpeed > 0 ? _currentSpeed : _config.forwardSpeed;
+        transform.Translate(Vector3.forward * speed * speedMult * Time.deltaTime, Space.World);
     }
 
     private void MoveToLane()

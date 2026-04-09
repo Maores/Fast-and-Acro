@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7, type: 3}
+  m_Name: Level02Data
+  m_EditorClassIdentifier: 
+  levelName: Level 02
+  country: Japan
+  trackLength: 300
+  obstacleCount: 22
+  minObstacleSpacing: 7
+  obstacleStartOffset: 18
+  movingObstacleRatio: 0.4
+  movingObstacleSpeed: 3
+  startSpeed: 15
+  speedIncrement: 0.5
+  maxSpeed: 25
+  skyColor: {r: 0.95, g: 0.55, b: 0.3, a: 1}
+  roadColor: {r: 0.2, g: 0.2, b: 0.22, a: 1}
+  fogColor: {r: 0.9, g: 0.6, b: 0.4, a: 1}
+  enableFog: 1
+  fogDensity: 0.008
+  ambientColor: {r: 1, g: 0.85, b: 0.7, a: 1}
+  threeStarMaxCollisions: 0
+  twoStarMaxCollisions: 2
+  threeStarMaxTime: 45
+  twoStarMaxTime: 60

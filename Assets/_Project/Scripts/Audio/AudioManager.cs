@@ -13,6 +13,14 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip _gameOverClip;
     [SerializeField] private AudioClip _buttonClickClip;
     [SerializeField] private AudioClip _laneSwitchClip;
+    [SerializeField] private AudioClip _coinPickupClip;
+    [SerializeField] private AudioClip _powerUpClip;
+
+    [Header("Music")]
+    [SerializeField] private AudioClip _menuMusic;
+    [SerializeField] private AudioClip _gameplayMusic;
+    [SerializeField] private AudioSource _musicSource;
+    [SerializeField] [Range(0f, 1f)] private float _musicVolume = 0.3f;
 
     [Header("Engine")]
     [SerializeField] private AudioSource _engineSource;
@@ -51,6 +59,42 @@ public class AudioManager : MonoBehaviour
         PlayClip(_laneSwitchClip);
     }
 
+    public void PlayCoinPickup()
+    {
+        PlayClip(_coinPickupClip);
+    }
+
+    public void PlayPowerUp()
+    {
+        PlayClip(_powerUpClip);
+    }
+
+    public void PlayMenuMusic()
+    {
+        PlayMusic(_menuMusic);
+    }
+
+    public void PlayGameplayMusic()
+    {
+        PlayMusic(_gameplayMusic);
+    }
+
+    public void StopMusic()
+    {
+        if (_musicSource != null)
+            _musicSource.Stop();
+    }
+
+    private void PlayMusic(AudioClip clip)
+    {
+        if (_musicSource == null || clip == null) return;
+        if (_musicSource.clip == clip && _musicSource.isPlaying) return;
+        _musicSource.clip = clip;
+        _musicSource.loop = true;
+        _musicSource.volume = _musicVolume;
+        _musicSource.Play();
+    }
+
     public void StartEngine()
     {
         if (_engineSource != null && !_engineSource.isPlaying)
@@ -70,7 +114,7 @@ public class AudioManager : MonoBehaviour
 
     private void PlayClip(AudioClip clip)
     {
-        if (clip != null)
+        if (clip != null && _sfxSource != null)
         {
             _sfxSource.PlayOneShot(clip);
         }

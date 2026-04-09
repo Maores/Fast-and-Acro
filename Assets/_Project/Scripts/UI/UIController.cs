@@ -19,8 +19,9 @@ public class UIController : MonoBehaviour
     [SerializeField] private GameObject _pausePanel;
 
     [Header("HUD Elements")]
-    [SerializeField] private Image _hpBarFill;
+    [SerializeField] private RectTransform _hpBarFill;
     [SerializeField] private TMP_Text _timerText;
+    [SerializeField] private TMP_Text _coinText;
 
     [Header("Level Complete Elements")]
     [SerializeField] private Image[] _starImages;
@@ -35,10 +36,14 @@ public class UIController : MonoBehaviour
     [SerializeField] private Button _playButton;
     [SerializeField] private Button _pauseButton;
     [SerializeField] private Button _resumeButton;
-    [SerializeField] private Button _retryButtonComplete;
+    [SerializeField] private Button _nextLevelButton;
     [SerializeField] private Button _retryButtonGameOver;
     [SerializeField] private Button _menuButtonComplete;
     [SerializeField] private Button _menuButtonGameOver;
+    [SerializeField] private Button _skinsButton;
+    [SerializeField] private Button _quitButton;
+
+    private AudioManager _audioManager;
 
     private void Awake()
     {
@@ -46,10 +51,18 @@ public class UIController : MonoBehaviour
         _playButton.onClick.AddListener(OnPlayClicked);
         _pauseButton.onClick.AddListener(OnPauseClicked);
         _resumeButton.onClick.AddListener(OnResumeClicked);
-        _retryButtonComplete.onClick.AddListener(OnRetryClicked);
+        _nextLevelButton.onClick.AddListener(OnNextLevelClicked);
         _retryButtonGameOver.onClick.AddListener(OnRetryClicked);
         _menuButtonComplete.onClick.AddListener(OnMenuClicked);
         _menuButtonGameOver.onClick.AddListener(OnMenuClicked);
+
+        if (_skinsButton != null)
+            _skinsButton.onClick.AddListener(OnSkinsClicked);
+
+        if (_quitButton != null)
+            _quitButton.onClick.AddListener(OnQuitClicked);
+
+        _audioManager = FindFirstObjectByType<AudioManager>();
     }
 
     private void Update()
@@ -113,40 +126,76 @@ public class UIController : MonoBehaviour
     {
         if (_hpBarFill != null)
         {
-            _hpBarFill.fillAmount = (float)currentHP / maxHP;
+            float ratio = (float)currentHP / maxHP;
+            _hpBarFill.anchorMax = new Vector2(ratio, _hpBarFill.anchorMax.y);
         }
+    }
+
+    public void UpdateCoins(int coins)
+    {
+        if (_coinText != null)
+            _coinText.SetText("{0}", coins);
     }
 
     // --- Button Handlers ---
 
     private void OnPlayClicked()
     {
-        _gameManager.StartGame();
+        PlayClickSound();
+        _gameManager.ShowLevelSelect();
     }
 
     private void OnPauseClicked()
     {
+        PlayClickSound();
         _gameManager.PauseGame();
     }
 
     private void OnResumeClicked()
     {
+        PlayClickSound();
         _gameManager.ResumeGame();
+    }
+
+    private void OnNextLevelClicked()
+    {
+        PlayClickSound();
+        _gameManager.NextLevel();
     }
 
     private void OnRetryClicked()
     {
+        PlayClickSound();
         _gameManager.RestartLevel();
     }
 
     private void OnMenuClicked()
     {
+        PlayClickSound();
         _gameManager.ReturnToMenu();
+    }
+
+    private void OnSkinsClicked()
+    {
+        PlayClickSound();
+        _gameManager.ShowCarSkins();
+    }
+
+    private void OnQuitClicked()
+    {
+        PlayClickSound();
+        _gameManager.ReturnToMenu();
+    }
+
+    private void PlayClickSound()
+    {
+        if (_audioManager != null)
+            _audioManager.PlayButtonClick();
     }
 
     // --- Helpers ---
 
-    private void HideAll()
+    public void HideAll()
     {
         _mainMenuPanel.SetActive(false);
         _hudPanel.SetActive(false);
