@@ -24,10 +24,13 @@ public class CoinCollectVFX : MonoBehaviour
     // Pool of reusable particle systems (keeps allocations minimal at runtime)
     private const int POOL_SIZE = 4;
     private ParticleSystem[] _pool;
+    private Coroutine[] _poolCoroutines;
     private int _poolIndex;
+    private WaitForSeconds _waitLifetime;
 
     private void Awake()
     {
+        _waitLifetime = new WaitForSeconds(_lifetime);
         BuildPool();
     }
 
@@ -56,36 +59,38 @@ public class CoinCollectVFX : MonoBehaviour
 
     private void PlayBurstAt(Vector3 worldPosition)
     {
-        ParticleSystem ps = GetNextPooled();
+        int idx = _poolIndex;
+        _poolIndex = (_poolIndex + 1) % POOL_SIZE;
+
+        // Cancel previous coroutine on this slot to prevent stale deactivation
+        if (_poolCoroutines[idx] != null)
+            StopCoroutine(_poolCoroutines[idx]);
+
+        ParticleSystem ps = _pool[idx];
         ps.transform.position = worldPosition;
         ps.gameObject.SetActive(true);
         ps.Clear();
         ps.Play();
 
-        StartCoroutine(ReturnToPoolAfter(ps, _lifetime));
+        _poolCoroutines[idx] = StartCoroutine(ReturnToPoolAfter(ps, idx));
     }
 
-    private IEnumerator ReturnToPoolAfter(ParticleSystem ps, float delay)
+    private IEnumerator ReturnToPoolAfter(ParticleSystem ps, int slotIndex)
     {
-        yield return new WaitForSeconds(delay);
+        yield return _waitLifetime;
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         ps.gameObject.SetActive(false);
+        _poolCoroutines[slotIndex] = null;
     }
 
     // -------------------------------------------------------------------------
     // Pool management
     // -------------------------------------------------------------------------
 
-    private ParticleSystem GetNextPooled()
-    {
-        ParticleSystem ps = _pool[_poolIndex];
-        _poolIndex = (_poolIndex + 1) % POOL_SIZE;
-        return ps;
-    }
-
     private void BuildPool()
     {
         _pool = new ParticleSystem[POOL_SIZE];
+        _poolCoroutines = new Coroutine[POOL_SIZE];
         for (int i = 0; i < POOL_SIZE; i++)
         {
             _pool[i] = BuildParticleSystem($"CoinVFX_{i}");

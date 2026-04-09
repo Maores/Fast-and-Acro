@@ -47,7 +47,9 @@ public class CameraFollow : MonoBehaviour
         Vector3 targetPosition = _target.position + _offset;
         targetPosition.z += _lookAheadZ;
 
-        transform.position = Vector3.Lerp(transform.position, targetPosition, _smoothSpeed * Time.deltaTime);
+        // Frame-rate-independent exponential decay smoothing
+        float t = 1f - Mathf.Exp(-_smoothSpeed * Time.deltaTime);
+        transform.position = Vector3.Lerp(transform.position, targetPosition, t);
 
         // Always look at a point slightly ahead of the car
         Vector3 lookTarget = _target.position + Vector3.forward * _lookAheadZ;

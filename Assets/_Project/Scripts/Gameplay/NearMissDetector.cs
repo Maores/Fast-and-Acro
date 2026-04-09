@@ -6,92 +6,74 @@ using UnityEngine;
 
 /// <summary>
 /// Detects when an obstacle passes the car without hitting it.
-/// Uses a trigger zone slightly larger than the car's own collider.
-/// When a near-miss occurs:
-///   - Fires the static OnNearMiss event (GameManager subscribes)
-///   - Spawns a rising "+10 CLOSE CALL!" world-space label
-///
-/// Attach to the Car GameObject alongside CarController and CollisionHandler.
-/// The car must already have a BoxCollider (non-trigger) for its actual hit detection.
-/// This script creates a second, larger BoxCollider (trigger) at runtime.
+/// Uses a child GameObject with a trigger collider slightly larger than the car's collider.
+/// This avoids collision routing ambiguity with CollisionHandler on the parent.
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
 public class NearMissDetector : MonoBehaviour
 {
-    // --- Configuration ---
-
     [Header("Detection Zone")]
-    [Tooltip("How much to expand the car's BoxCollider on X and Z axes for the near-miss zone")]
     [SerializeField] private float _zoneExpansion = 0.5f;
 
     [Header("Cooldown")]
-    [Tooltip("Minimum seconds between consecutive near-miss triggers")]
     [SerializeField] private float _cooldown = 0.5f;
 
     [Header("Floating Label")]
-    [Tooltip("How high the label floats (world units)")]
     [SerializeField] private float _labelFloatDistance = 2.5f;
-
-    [Tooltip("How long the label stays visible before fully fading")]
     [SerializeField] private float _labelLifetime = 1.2f;
-
-    [Tooltip("Font size for the near-miss label")]
     [SerializeField] private float _labelFontSize = 5f;
 
-    // --- Static event ---
-
-    /// <summary>
-    /// Fired each time a near-miss is confirmed.
-    /// GameManager subscribes to track the count.
-    /// </summary>
     public static event Action OnNearMiss;
 
-    // --- Private state ---
-
-    // BoxCollider that is the actual hit detection collider (non-trigger).
-    private BoxCollider _hitCollider;
-
-    // The larger trigger collider we create at runtime.
-    private BoxCollider _nearMissTrigger;
-
-    // Obstacles currently inside the expanded trigger zone.
     private readonly HashSet<Obstacle> _trackedObstacles = new HashSet<Obstacle>();
-
     private float _cooldownTimer;
+    private Camera _cachedCamera;
 
-    // --- Lifecycle ---
+    // Label pool (avoids per-trigger allocation)
+    private const int LABEL_POOL_SIZE = 3;
+    private GameObject[] _labelPool;
+    private TMP_Text[] _labelTexts;
+    private int _labelIndex;
+    private Coroutine[] _labelCoroutines;
 
     private void Awake()
     {
-        // Find the existing non-trigger BoxCollider on this GameObject.
-        // There may be multiple BoxColliders (e.g., trigger from another system),
-        // so we look specifically for the non-trigger one as the size reference.
-        BoxCollider[] allBoxColliders = GetComponents<BoxCollider>();
-        foreach (var bc in allBoxColliders)
+        _cachedCamera = Camera.main;
+
+        // Find the car's non-trigger BoxCollider as size reference
+        BoxCollider hitCollider = null;
+        foreach (var bc in GetComponents<BoxCollider>())
         {
             if (!bc.isTrigger)
             {
-                _hitCollider = bc;
+                hitCollider = bc;
                 break;
             }
         }
+        if (hitCollider == null)
+            hitCollider = GetComponent<BoxCollider>();
 
-        if (_hitCollider == null)
-        {
-            // Fallback: just use the first BoxCollider found
-            _hitCollider = GetComponent<BoxCollider>();
-        }
+        // Create child GameObject for the near-miss trigger
+        // This prevents collision routing ambiguity with CollisionHandler
+        var triggerGO = new GameObject("NearMissTrigger");
+        triggerGO.transform.SetParent(transform, false);
+        triggerGO.transform.localPosition = Vector3.zero;
+        triggerGO.layer = gameObject.layer;
 
-        // Create a second BoxCollider as the near-miss detection trigger
-        _nearMissTrigger = gameObject.AddComponent<BoxCollider>();
-        _nearMissTrigger.isTrigger = true;
-        _nearMissTrigger.center = _hitCollider.center;
-
-        // Expand the size on X and Z only (not Y — no need to detect above/below)
-        Vector3 expandedSize = _hitCollider.size;
+        var trigger = triggerGO.AddComponent<BoxCollider>();
+        trigger.isTrigger = true;
+        trigger.center = hitCollider.center;
+        Vector3 expandedSize = hitCollider.size;
         expandedSize.x += _zoneExpansion * 2f;
         expandedSize.z += _zoneExpansion * 2f;
-        _nearMissTrigger.size = expandedSize;
+        trigger.size = expandedSize;
+
+        // Add the relay script to forward trigger events back to us
+        var relay = triggerGO.AddComponent<NearMissTriggerRelay>();
+        relay.Initialize(this);
+
+        // Build label pool
+        BuildLabelPool();
     }
 
     private void Update()
@@ -100,28 +82,25 @@ public class NearMissDetector : MonoBehaviour
             _cooldownTimer -= Time.deltaTime;
     }
 
-    // --- Trigger callbacks ---
-
-    private void OnTriggerEnter(Collider other)
+    /// <summary>Called by NearMissTriggerRelay on the child object.</summary>
+    public void HandleTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Obstacle")) return;
-
         Obstacle obs = other.GetComponent<Obstacle>();
         if (obs != null)
             _trackedObstacles.Add(obs);
     }
 
-    private void OnTriggerExit(Collider other)
+    /// <summary>Called by NearMissTriggerRelay on the child object.</summary>
+    public void HandleTriggerExit(Collider other)
     {
         if (!other.CompareTag("Obstacle")) return;
-
         Obstacle obs = other.GetComponent<Obstacle>();
         if (obs == null) return;
 
         bool wasTracked = _trackedObstacles.Remove(obs);
         if (!wasTracked) return;
 
-        // Only count as near-miss if the car was NOT hit and cooldown has elapsed
         if (!obs.WasHit && _cooldownTimer <= 0f)
         {
             _cooldownTimer = _cooldown;
@@ -132,75 +111,99 @@ public class NearMissDetector : MonoBehaviour
     private void OnDisable()
     {
         _trackedObstacles.Clear();
+        StopAllCoroutines();
+        // Hide all pooled labels
+        if (_labelPool != null)
+        {
+            for (int i = 0; i < LABEL_POOL_SIZE; i++)
+                _labelPool[i].SetActive(false);
+        }
     }
-
-    // --- Near-miss response ---
 
     private void TriggerNearMiss()
     {
         OnNearMiss?.Invoke();
-        StartCoroutine(SpawnFloatingLabel());
+        ShowFloatingLabel();
     }
 
-    private IEnumerator SpawnFloatingLabel()
-    {
-        // Create a world-space Canvas for the label
-        GameObject canvasGO = new GameObject("NearMissCanvas");
-        Canvas canvas = canvasGO.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.sortingOrder = 10;
+    // --- Label Pool ---
 
-        // Position just above the car
+    private void BuildLabelPool()
+    {
+        _labelPool = new GameObject[LABEL_POOL_SIZE];
+        _labelTexts = new TMP_Text[LABEL_POOL_SIZE];
+        _labelCoroutines = new Coroutine[LABEL_POOL_SIZE];
+
+        for (int i = 0; i < LABEL_POOL_SIZE; i++)
+        {
+            var canvasGO = new GameObject($"NearMissLabel_{i}");
+            canvasGO.transform.SetParent(transform, false);
+            var canvas = canvasGO.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 10;
+            canvasGO.transform.localScale = Vector3.one * 0.02f;
+
+            var textGO = new GameObject("Text");
+            textGO.transform.SetParent(canvasGO.transform, false);
+            var label = textGO.AddComponent<TextMeshProUGUI>();
+            label.text = "+10 CLOSE CALL!";
+            label.fontSize = _labelFontSize;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = new Color(1f, 0.85f, 0f, 1f);
+            var rt = textGO.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(500f, 120f);
+
+            canvasGO.SetActive(false);
+            _labelPool[i] = canvasGO;
+            _labelTexts[i] = label;
+        }
+    }
+
+    private void ShowFloatingLabel()
+    {
+        int idx = _labelIndex;
+        _labelIndex = (_labelIndex + 1) % LABEL_POOL_SIZE;
+
+        // Stop previous coroutine on this slot if still running
+        if (_labelCoroutines[idx] != null)
+            StopCoroutine(_labelCoroutines[idx]);
+
+        var go = _labelPool[idx];
+        var label = _labelTexts[idx];
+        go.SetActive(true);
+
+        _labelCoroutines[idx] = StartCoroutine(AnimateLabel(go, label, idx));
+    }
+
+    private IEnumerator AnimateLabel(GameObject canvasGO, TMP_Text label, int slotIndex)
+    {
         Vector3 spawnPos = transform.position + Vector3.up * 1.5f;
         canvasGO.transform.position = spawnPos;
-        canvasGO.transform.localScale = Vector3.one * 0.02f;
+        Color startColor = new Color(1f, 0.85f, 0f, 1f);
+        label.color = startColor;
 
-        // Make the canvas face the camera
-        Camera cam = Camera.main;
-        if (cam != null)
+        if (_cachedCamera != null)
             canvasGO.transform.rotation = Quaternion.LookRotation(
-                canvasGO.transform.position - cam.transform.position);
+                canvasGO.transform.position - _cachedCamera.transform.position);
 
-        // Create the TMP_Text child
-        GameObject textGO = new GameObject("NearMissText");
-        textGO.transform.SetParent(canvasGO.transform, false);
-
-        TMP_Text label = textGO.AddComponent<TextMeshProUGUI>();
-        label.text = "+10 CLOSE CALL!";
-        label.fontSize = _labelFontSize;
-        label.alignment = TextAlignmentOptions.Center;
-        label.color = new Color(1f, 0.85f, 0f, 1f); // Bright gold
-
-        // Size the RectTransform so it can fit the text
-        RectTransform rt = textGO.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(500f, 120f);
-        rt.anchoredPosition = Vector2.zero;
-
-        // Animate: float upward and fade out
         float elapsed = 0f;
-        Vector3 startPos = canvasGO.transform.position;
-        Color startColor = label.color;
-
         while (elapsed < _labelLifetime)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / _labelLifetime;
 
-            // Float upward
-            canvasGO.transform.position = startPos + Vector3.up * (_labelFloatDistance * t);
+            canvasGO.transform.position = spawnPos + Vector3.up * (_labelFloatDistance * t);
 
-            // Face camera each frame while moving
-            if (cam != null)
+            if (_cachedCamera != null)
                 canvasGO.transform.rotation = Quaternion.LookRotation(
-                    canvasGO.transform.position - cam.transform.position);
+                    canvasGO.transform.position - _cachedCamera.transform.position);
 
-            // Fade out in the last 40% of lifetime
             float fadeT = Mathf.InverseLerp(0.6f, 1f, t);
             label.color = new Color(startColor.r, startColor.g, startColor.b, 1f - fadeT);
-
             yield return null;
         }
 
-        Destroy(canvasGO);
+        canvasGO.SetActive(false);
+        _labelCoroutines[slotIndex] = null;
     }
 }

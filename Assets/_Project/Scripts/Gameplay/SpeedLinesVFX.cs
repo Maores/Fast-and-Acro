@@ -32,9 +32,17 @@ public class SpeedLinesVFX : MonoBehaviour
     private ParticleSystem.EmissionModule _emission;
     private bool _isBuilt;
 
+    private GameObject _psObject;
+
     private void Awake()
     {
         BuildParticleSystem();
+    }
+
+    private void OnDestroy()
+    {
+        if (_psObject != null)
+            Destroy(_psObject);
     }
 
     private void Update()
@@ -69,7 +77,8 @@ public class SpeedLinesVFX : MonoBehaviour
 
     private void BuildParticleSystem()
     {
-        GameObject go = new GameObject("SpeedLinesVFX");
+        _psObject = new GameObject("SpeedLinesVFX");
+        GameObject go = _psObject;
         go.transform.SetParent(transform, false);
         // Position just in front of camera in view-space
         go.transform.localPosition = new Vector3(0f, 0f, 1f);

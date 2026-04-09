@@ -166,13 +166,10 @@ public class PowerUpEffect : MonoBehaviour
         }
 
         // Pull all active Coin objects within radius toward the player.
-        Coin[] coins = FindObjectsByType<Coin>(FindObjectsSortMode.None);
         Vector3 playerPos = transform.position;
 
-        foreach (Coin coin in coins)
+        foreach (Coin coin in Coin.ActiveCoins)
         {
-            if (!coin.gameObject.activeSelf) continue;
-
             float distance = Vector3.Distance(coin.transform.position, playerPos);
             if (distance > MAGNET_RADIUS) continue;
 

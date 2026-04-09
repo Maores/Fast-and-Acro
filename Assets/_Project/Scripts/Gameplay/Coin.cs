@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
@@ -10,6 +11,11 @@ public class Coin : MonoBehaviour
     /// Used by CoinCollectVFX to spawn a particle burst at the correct location.
     /// </summary>
     public static event System.Action<Vector3> OnCoinCollectedAt;
+
+    /// <summary>
+    /// Static registry of all active coins. Used by CoinMagnet instead of FindObjectsByType.
+    /// </summary>
+    public static readonly HashSet<Coin> ActiveCoins = new HashSet<Coin>();
 
     [SerializeField] private float _rotationSpeed = 120f;
     [SerializeField] private float _bobAmplitude = 0.15f;
@@ -40,12 +46,19 @@ public class Coin : MonoBehaviour
         _bobOffset = 0f;
         _isActive = true;
         gameObject.SetActive(true);
+        ActiveCoins.Add(this);
     }
 
     public void Deactivate()
     {
         _isActive = false;
+        ActiveCoins.Remove(this);
         gameObject.SetActive(false);
+    }
+
+    private void OnDisable()
+    {
+        ActiveCoins.Remove(this);
     }
 
     private void Update()

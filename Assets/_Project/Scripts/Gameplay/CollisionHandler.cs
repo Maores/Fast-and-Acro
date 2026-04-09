@@ -74,6 +74,11 @@ public class CollisionHandler : MonoBehaviour
         {
             if (hit.collider.CompareTag("Obstacle"))
             {
+                // Mark obstacle so NearMissDetector doesn't double-count
+                Obstacle obstacle = hit.collider.GetComponent<Obstacle>();
+                if (obstacle != null)
+                    obstacle.WasHit = true;
+
                 TakeDamage();
             }
         }

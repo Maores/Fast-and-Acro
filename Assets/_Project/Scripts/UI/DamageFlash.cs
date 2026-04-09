@@ -23,6 +23,18 @@ public class DamageFlash : MonoBehaviour
 
     private Coroutine _activeFlash;
 
+    private void OnDisable()
+    {
+        StopAllCoroutines();
+        _activeFlash = null;
+        if (_flashImage != null)
+        {
+            Color c = _flashImage.color;
+            c.a = 0f;
+            _flashImage.color = c;
+        }
+    }
+
     private void Awake()
     {
         // Ensure the overlay starts fully transparent so it never blocks gameplay.
